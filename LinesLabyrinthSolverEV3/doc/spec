@@ -1,0 +1,51 @@
+
+Erkennungsmuster DataLightsensor:
+
+Hinweg:
+1 // begin of data
+1 // right
+1 // forward
+1 // left
+1 // end of data begin crossing
+Rückweg:
+1 // at last crossing
+
+
+Ablauf:
+
+mode forward:
+
+forward until(interrupt begin of data)
+read data
+wait for end of data
+add new knot(data)
+
+
+mode backward
+
+
+
+start crossing1 left
+				front
+				right
+				back
+				
+				
+TODO: 
+Debugger
+
+
+Methoden:
+turnLeft()
+turnRight()
+
+readData()
+
+
+				
+
+
+ 
+
+  
+

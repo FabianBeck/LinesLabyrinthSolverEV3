@@ -31,5 +31,8 @@ public class PIDControllerLineFollowing {
 		return KP * (x_pos_error + KI * integral + KD * x_speed_error);
 
 	}
+	public void resetPID(){
+		integral=0;
+	}
 
 }
