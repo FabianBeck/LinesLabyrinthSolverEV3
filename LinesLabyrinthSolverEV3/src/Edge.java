@@ -1,19 +1,22 @@
 public class Edge {
 	int direction;
-	// left=1;
-	// front = 2;
-	// right = 3;
-	// back = 0;
+	// North=0;
+	// South =2;
+	// West = 1;
+	// East = 3;
 	Knot parent;
 	Knot child;
 
-	public Edge(int directionEdge, Knot parentKnot) {
+	public Edge(int directionEdge, Knot parentKnot, Knot childKnot) {
 		parent = parentKnot;
 		direction = directionEdge;
-
-	}
-
-	public void addChild(Knot childKnot) {
 		child=childKnot;
 	}
+	public Knot getChild(){
+		return child;
+	}
+	public Knot getParent(){
+		return parent;
+	}
+	
 }
