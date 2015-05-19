@@ -13,9 +13,13 @@ import java.util.Vector;
 import javax.naming.directory.DirContext;
 
 import lejos.hardware.Button;
+import lejos.hardware.Sound;
+import lejos.robotics.RegulatedMotor;
 import lejos.robotics.SampleProvider;
 import lejos.hardware.ev3.LocalEV3;
 import lejos.hardware.lcd.GraphicsLCD;
+import lejos.hardware.lcd.LCD;
+import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.port.*;
 import lejos.hardware.sensor.EV3ColorSensor;
 
@@ -24,147 +28,164 @@ public class LinesLabyrinthSolver {
 	static int west = 1;
 	static int south = 2;
 	static int east = 3;
-
+	static int crossArr[] = { 0, 0, 0 };
 	static float stripLength = 0.017f;
 	static GraphicsLCD lcd = LocalEV3.get().getGraphicsLCD();
+	static LineFollowerThreadObject LineFollowerThread;
 
-	static void drawState(String Name, float EncPos, float lvNavi) {
+	static void drawState(String Name, float EncPos, float lvNavi,
+			Edge currentEdge) {
 		lcd.clear();
 		lcd.drawString("State: " + Name, 0, 15, 0);
 		lcd.drawString("EncPos: " + EncPos, 0, 30, 0);
 		lcd.drawString("lvNavi: " + lvNavi, 0, 45, 0);
+		lcd.drawString("cur.dir:" + currentEdge.direction, 0, 60, 0);
 
-		// lcd.drawString("crossing: "
-		// +crossArr[0]+" "+crossArr[1]+" "+crossArr[2],0,15,0);
+		lcd.drawString("cross: " + crossArr[0] + crossArr[1] + crossArr[2], 0,
+				75, 0);
 	}
+
+	public static int local2global(int direction, Edge currentEdge) {
+		return (currentEdge.direction + direction) % 4;
+	}
+
+	public static int global2local(int direction, Edge currentEdge) {
+		return 0;
+	}
+
 	public static void main(String[] args) throws InterruptedException {
-		BTConnection btcon = new BTConnection();
-		btcon.sendPacket(1, 0, 0);
-		
-		FileOutputStream out = null; // declare outside the try block
-		File data = new File("meas.dat");
-		try {
-			out = new FileOutputStream(data);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		DataOutputStream dataOut = new DataOutputStream(out);
 
 		EV3ColorSensor lsNavi = new EV3ColorSensor(SensorPort.S3);
 		lsNavi.setFloodlight(true);
 		SampleProvider spNavi = lsNavi.getRedMode();
 
-		Knot startingKnot = new Knot();
-		Vector<Integer> crossing = new Vector<Integer>();
-		crossing.add(north);
-		startingKnot.addOptions(crossing);
-		crossing.removeAllElements();
-		Knot lastKnot = startingKnot;
-		Edge currentEdge = startingKnot.getNextOption();
-		// dataOut.writeUTF("lvNavi \n");
-		int i = 0;
+		// Initializing
+		boolean onWayBack = false;
+		Knot currentKnot;
+		Edge currentEdge;
+
+		currentEdge = new Edge(0, null);
+		currentKnot = new Knot(currentEdge);
+		currentEdge.setChild(currentKnot);
 
 		float[] lvNaviArr = new float[spNavi.sampleSize()];
 		float lvNavi = 0;
 		float lightThreshold = 0.18f;
 
-		LineFollowerThreadObject LineFollowerThread = new LineFollowerThreadObject();
+		LineFollowerThread = new LineFollowerThreadObject();
 		LineFollowerThread.start();
+		LineFollowerThread.stopFollowing();
 		try {
 			Thread.sleep(1000);
 		} catch (InterruptedException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-		LineFollowerThread.startFollowing();
-
+		// Main loop
 		while (!Button.ESCAPE.isDown()) {
-			i++;
+			//Button.RIGHT.waitForPressAndRelease();
+			//Thread.sleep(500);
+			Sound.beep();
 			LineFollowerThread.startFollowing();
-			// Wait for reading
+
+			// drive to next crossing
+			Thread.sleep(500);
+
 			int l = 0;
 			do {
 
 				spNavi.fetchSample(lvNaviArr, 0);
 				lvNavi = lvNaviArr[0];
 				if (l % 30 == 0)
-					drawState("Wait for reading", 0, lvNavi);
+					drawState("Wait for reading", 0, lvNavi, currentEdge);
 				l++;
 			} while (lvNavi > lightThreshold);
+
+			// reached next crossing
 			LineFollowerThread.rightMotor.resetTachoCount();
 			float EncPos = 0;
-			// read bits
-			do {
-				EncPos = (float) (LineFollowerThread.rightMotor.getTachoCount()
-						/ 360f * Math.PI * 0.055);
-				drawState("Wait for first bit to read", EncPos, lvNavi);
-			} while (EncPos < stripLength);
-			for (int j = 0; j < 3; j++) {
-				int k = 0;
-				float lvNaviSum = 0;
-				while (EncPos / stripLength < j + 2) {
+
+			if (!onWayBack) {
+				// read bits
+				do {
 					EncPos = (float) (LineFollowerThread.rightMotor
 							.getTachoCount() / 360f * Math.PI * 0.055);
-					spNavi.fetchSample(lvNaviArr, 0);
-					lvNavi = lvNaviArr[0];
-					lvNaviSum += lvNavi;
-					k++;
-					if (k % 30 == 0)
-						drawState("Read bit: " + (j + 1), EncPos, lvNavi);
+					drawState("Wait for first bit to read", EncPos, lvNavi,
+							currentEdge);
+				} while (EncPos < stripLength);
+				// Reading bits
+				for (int i = 0; i < crossArr.length; i++) {
+					crossArr[i] = 0;
 				}
-				if (lvNaviSum / k > lightThreshold) {
-					// TODO:crossing.addElement((lastKnot.getParentEdge().direction+j+2)%4);
+				for (int j = 0; j < 3; j++) {
+					int k = 0;
+					float lvNaviSum = 0;
+					while (EncPos / stripLength < j + 2) {
+						EncPos = (float) (LineFollowerThread.rightMotor
+								.getTachoCount() / 360f * Math.PI * 0.055);
+						spNavi.fetchSample(lvNaviArr, 0);
+						lvNavi = lvNaviArr[0];
+						lvNaviSum += lvNavi;
+						k++;
+						if (k % 30 == 0)
+							drawState("Read bit: " + (j + 1), EncPos, lvNavi,
+									currentEdge);
+					}
+					if (lvNaviSum / k > lightThreshold) {
+						int direction = 0;
+						switch (j) {
+						case 0:
+							direction = local2global(3, currentEdge);
+							break;
+						case 1:
+							direction = local2global(0, currentEdge);
+							break;
+						case 2:
+							direction = local2global(1, currentEdge);
+							break;
+						}
+						crossArr[j] = 1;
+						currentKnot.addOption(direction);
+
+					}
+					// lcd.clear();
+					// lcd.drawString("crossing: " + crossArr[0] + " "
+					// + crossArr[1] + " " + crossArr[2], 0, 60, 0);
 
 				}
 			}
-			// drive to begin of crossing
+			// drive to middle of crossing
+			float mindstormSpecificOffset = 0.125f; // [m]
 			do {
-
 				EncPos = (float) (LineFollowerThread.rightMotor.getTachoCount()
 						/ 360f * Math.PI * 0.055);
-				spNavi.fetchSample(lvNaviArr, 0);
-				lvNavi = lvNaviArr[0];
 				if (l % 30 == 0)
-					drawState("drive to begin of crossing", EncPos, lvNavi);
-				l++;
-			} while ((EncPos < 5 * stripLength) || (lvNavi < lightThreshold));
-			LineFollowerThread.stopFollowing();
-			/*
-			 * while(!Button.ENTER.isDown()&&!Button.ESCAPE.isDown()){
-			 * EncPos=(float) (LineFollowerThread.rightMotor.getTachoCount()/
-			 * 360f*Math.PI*0.055); spNavi.fetchSample(lvNaviArr, 0);
-			 * lvNavi=lvNaviArr[0]; drawState("reached crossing:", EncPos,
-			 * lvNavi);
-			 * lcd.drawString(String.valueOf(crossArr[0])+String.valueOf
-			 * (crossArr[1])+String.valueOf(crossArr[2]),0,60,0);
-			 * Button.RIGHT.waitForPressAndRelease(); }
-			 */
+					drawState("drive to begin of crossing", EncPos, lvNavi,
+							currentEdge);
 
-			drawState("reached crossing:", EncPos, lvNavi);
-			String directions = "";
-			for (int j = 0; j < crossing.size(); j++) {
-				directions += crossing.get(j);
-				// TODO:currentEdge.
+				l++;
+			} while (EncPos < 5 * stripLength + mindstormSpecificOffset);
+
+			LineFollowerThread.stopFollowing();
+			// Button.ENTER.waitForPressAndRelease();
+			Edge nextEdge = currentKnot.getNextOption();
+			if (nextEdge != null) {
+				// System.out.println("found option");
+				onWayBack = false;
+				rotate(currentEdge, nextEdge);
+				currentEdge = nextEdge;
+				currentKnot = nextEdge.getChild();
+			} else {
+				onWayBack = true;
+				// System.out.println("onWayBack");
+				nextEdge = currentKnot.getWayBack();
+				rotate(currentEdge, nextEdge);
+				currentKnot = nextEdge.getParent();
+				currentEdge = nextEdge;
 			}
 
-			lcd.drawString("Directions:" + directions, 0, 60, 0);
-			Button.UP.waitForPressAndRelease();
-
-			Knot newKnot = new Knot();
-			// TODO:newKnot.addParentEdge(currentEdge);
-			newKnot.addOptions(crossing);
-
-			// logging
-			// dataOut.writeUTF(String.valueOf(lvNavi)+"\n");
-			// dataOut.flush();
-
 		}
 
-		try {
-			out.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 		lsNavi.close();
 		LineFollowerThread.stopFollowing();
 		LineFollowerThread.quitThread();
@@ -173,5 +194,51 @@ public class LinesLabyrinthSolver {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public static void rotate(Edge currentEdge, Edge targetEdge)
+			throws InterruptedException {
+		/**
+		 * Diese Funktion berechnet euch bei Übergabe der aktuellen Kante und
+		 * der Zielkante den Drehwinkel und führt die Drehung aus
+		 **/
+
+		int rotate = 0;
+		int diff = (targetEdge.direction - currentEdge.direction) % 4;
+		if (diff == 0) {
+			return;
+		}
+		if (Math.abs(diff) > 2) {
+			rotate = -diff % 2;
+		} else
+			rotate = diff;
+		if (rotate == 2) {
+			rotate = -2;
+		}
+		lcd.drawString("turn: " + rotate * 90, 0, 90, 0);
+		// Button.ENTER.waitForPressAndRelease();
+		turn(rotate * 90);
+		return;
+	}
+
+	public static void turn(int deg) throws InterruptedException {
+		float wheelbase = 0.1f;
+		float wheelradius = 0.05f;
+		// lcd.drawString("turn", 0, 75, 0);
+		Sound.beepSequenceUp();
+		int angle = (int) (2 * Math.PI * wheelbase * deg / (2 * Math.PI * wheelradius));
+		// LineFollowerThreadObject.leftMotor.resetTachoCount();
+		// LineFollowerThreadObject.rightMotor.resetTachoCount();
+		// LineFollowerThreadObject.leftMotor.forward();
+		// LineFollowerThreadObject.rightMotor.forward();
+		// LineFollowerThreadObject.leftMotor.setSpeed(100);
+		// LineFollowerThreadObject.rightMotor.setSpeed(100);
+		LineFollowerThreadObject.leftMotor.rotate(angle, true);
+		LineFollowerThreadObject.rightMotor.rotate(-angle, false);
+		LineFollowerThreadObject.leftMotor.stop();
+		LineFollowerThreadObject.rightMotor.stop();
+				
+		// Button.ENTER.waitForPressAndRelease();
+
 	}
 }

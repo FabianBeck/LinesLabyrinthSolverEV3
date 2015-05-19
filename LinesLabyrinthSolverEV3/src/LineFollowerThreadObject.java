@@ -13,25 +13,23 @@ public class LineFollowerThreadObject extends Thread {
 	public float lvLine = 0;
 	public float speedForward = 250; // degrees per second
 	float MotorSpeedDiff = 0;
-	RegulatedMotor leftMotor = new EV3LargeRegulatedMotor(MotorPort.B);
-	RegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.A);
+	static RegulatedMotor leftMotor = new EV3LargeRegulatedMotor(MotorPort.B);
+	static RegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.A);
 	PIDControllerLineFollowing pidController;
 	GraphicsLCD lcd = LocalEV3.get().getGraphicsLCD();
 
 	public void run() {
-		pidController = new PIDControllerLineFollowing(
-				0.04f, 0.22f);
-		pidController.KP = 260f;
+		pidController = new PIDControllerLineFollowing(0.04f, 0.22f);
+		pidController.KP = 240f;
 		pidController.KD = 0f;
 		pidController.KI = 0.04f;
-		
-		
+
 		EV3ColorSensor lsLine = new EV3ColorSensor(SensorPort.S2);
 		lsLine.setFloodlight(true);
 		SampleProvider spLine = lsLine.getRedMode();
 		float[] lvLineArr = new float[spLine.sampleSize()];
+		boolean motorsStopped = false;
 
-		
 		leftMotor.forward();
 		rightMotor.forward();
 
@@ -55,9 +53,13 @@ public class LineFollowerThreadObject extends Thread {
 				}
 				leftMotor.setSpeed((int) speedl);
 				rightMotor.setSpeed((int) speedr);
+				motorsStopped=false;
 			}
-			leftMotor.stop(true);
-			rightMotor.stop(true);
+			if (!motorsStopped) {
+				leftMotor.stop(true);
+				rightMotor.stop(true);
+				motorsStopped=true;
+			}
 			try {
 				Thread.sleep(10);
 			} catch (InterruptedException e) {
@@ -77,19 +79,22 @@ public class LineFollowerThreadObject extends Thread {
 	public void stopFollowing() {
 		running = false;
 	}
-	public void quitThread(){
+
+	public void quitThread() {
 		running = false;
-		quit=true;
+		quit = true;
 	}
-	public float getSpeed(){
+
+	public float getSpeed() {
 		return speedForward;
 	}
-	public float getAngularRate(){
-		return 0.055f*MotorSpeedDiff/0.125f;
+
+	public float getAngularRate() {
+		return 0.055f * MotorSpeedDiff / 0.125f;
 	}
-	public void reset(){
+
+	public void reset() {
 		pidController.resetPID();
 	}
-	
-	
+
 }
