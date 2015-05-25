@@ -32,7 +32,7 @@ public class PIDControllerLineFollowing {
 		// limit output
 		if(Math.abs(u)>70){
 			u=70*Math.signum(u);
-			Sound.buzz();
+			//Sound.buzz();
 		}
 		return u; 
 

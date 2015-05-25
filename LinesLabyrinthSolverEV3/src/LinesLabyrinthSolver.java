@@ -85,9 +85,16 @@ public class LinesLabyrinthSolver {
 		while (!Button.ESCAPE.isDown()) {
 			// Button.RIGHT.waitForPressAndRelease();
 			// Thread.sleep(500);
-			Sound.beep();
+			//Sound.beep();
+			LineFollowerThread.speedForward=0;
 			LineFollowerThread.startFollowing();
-
+			for (int i = 0; i <100; i++) {
+				LineFollowerThread.speedForward++;
+				LineFollowerThread.reset();
+				Thread.sleep(10);
+			}
+			
+			LineFollowerThread.speedForward=250;
 			// drive to next crossing
 			Thread.sleep(500);
 
@@ -221,46 +228,33 @@ public class LinesLabyrinthSolver {
 	}
 
 	public static void turn(int deg) throws InterruptedException {
+		
+		Thread.sleep(1000);
+		RegulatedMotor leftMotor = new EV3LargeRegulatedMotor(MotorPort.B);
+		RegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.A);
 		lcd.drawString("turn: " + deg, 0, 90, 0);
+		deg+=10;
 		float wheelbase = 0.1f;
 		float wheelradius = 0.05f;
 		// Button.ENTER.waitForPressAndRelease();
-		Sound.beepSequenceUp();
-		LineFollowerThread.leftMotor.setSpeed(50);
-		LineFollowerThread.rightMotor.setSpeed(50);
+		// Sound.beepSequenceUp();
+		leftMotor.setSpeed(100);
+		rightMotor.setSpeed(100);
 		
 		int angle = (int) (2 * Math.PI * wheelbase * deg / (2 * Math.PI * wheelradius));
 
-		LineFollowerThreadObject.leftMotor.rotate(angle, true);
-		LineFollowerThreadObject.rightMotor.rotate(-angle, false);
+		leftMotor.rotate(angle, true);
+		rightMotor.rotate(-angle, false);
 
-		while (LineFollowerThreadObject.leftMotor.isMoving()
-				|| LineFollowerThreadObject.rightMotor.isMoving()) {
+		while (leftMotor.isMoving()
+				|| rightMotor.isMoving()) {
 			Thread.sleep(10);
 		}
-		LineFollowerThreadObject.leftMotor.stop();
-		LineFollowerThreadObject.rightMotor.stop();
-		// calibration
-		angle = (int) (2 * Math.PI * wheelbase * 5 / (2 * Math.PI * wheelradius));
-		LineFollowerThreadObject.leftMotor.rotate(angle, true);
-		LineFollowerThreadObject.rightMotor.rotate(-angle, false);
-		while ((LineFollowerThreadObject.leftMotor.isMoving() || LineFollowerThreadObject.rightMotor
-				.isMoving()) && LineFollowerThread.lvLine > 0.3) {
-			Thread.sleep(10);
-		}
-		LineFollowerThreadObject.leftMotor.stop(true);
-		LineFollowerThreadObject.rightMotor.stop(false);
-		if (LineFollowerThread.lvLine > 0.3) {
-			angle = (int) (2 * Math.PI * wheelbase * (-10) / (2 * Math.PI * wheelradius));
-			LineFollowerThreadObject.leftMotor.rotate(angle, true);
-			LineFollowerThreadObject.rightMotor.rotate(-angle, false);
-			while ((LineFollowerThreadObject.leftMotor.isMoving() || LineFollowerThreadObject.rightMotor
-					.isMoving()) && LineFollowerThread.lvLine > 0.3) {
-				Thread.sleep(10);
-			}
-			LineFollowerThreadObject.leftMotor.stop(true);
-			LineFollowerThreadObject.rightMotor.stop(false);
-		}
+		leftMotor.stop();
+		rightMotor.stop();
+	
+		leftMotor.close();
+		rightMotor.close();
 
 	}
 }

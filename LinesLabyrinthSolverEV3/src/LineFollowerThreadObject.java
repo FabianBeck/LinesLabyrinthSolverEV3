@@ -21,9 +21,9 @@ public class LineFollowerThreadObject extends Thread {
 
 	public void run() {
 		pidController = new PIDControllerLineFollowing(0.04f, 0.22f);
-		pidController.KP = 260f;
+		pidController.KP = 235f;
 		pidController.KD = 0f;
-		pidController.KI = 0.06f;
+		pidController.KI = 0.0f;
 
 		lsLine.setFloodlight(true);
 		SampleProvider spLine = lsLine.getRedMode();
@@ -58,6 +58,8 @@ public class LineFollowerThreadObject extends Thread {
 			if (!motorsStopped) {
 				leftMotor.stop(true);
 				rightMotor.stop(true);
+				leftMotor.close();
+				rightMotor.close();				
 				motorsStopped=true;
 			}
 			try {
@@ -66,13 +68,21 @@ public class LineFollowerThreadObject extends Thread {
 				e.printStackTrace();
 			}
 		}
-		leftMotor.close();
-		rightMotor.close();
+		//leftMotor.close();
+		//rightMotor.close();
 
 	}
 
 	public void startFollowing() {
 		pidController.resetPID();
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		leftMotor = new EV3LargeRegulatedMotor(MotorPort.B);   
+		rightMotor = new EV3LargeRegulatedMotor(MotorPort.A);  
 		running = true;
 	}
 
