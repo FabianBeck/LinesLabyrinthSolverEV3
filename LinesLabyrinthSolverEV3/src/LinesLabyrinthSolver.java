@@ -83,8 +83,8 @@ public class LinesLabyrinthSolver {
 		}
 		// Main loop
 		while (!Button.ESCAPE.isDown()) {
-			//Button.RIGHT.waitForPressAndRelease();
-			//Thread.sleep(500);
+			// Button.RIGHT.waitForPressAndRelease();
+			// Thread.sleep(500);
 			Sound.beep();
 			LineFollowerThread.startFollowing();
 
@@ -203,42 +203,64 @@ public class LinesLabyrinthSolver {
 		 * der Zielkante den Drehwinkel und führt die Drehung aus
 		 **/
 
-		int rotate = 0;
-		int diff = (targetEdge.direction - currentEdge.direction) % 4;
-		if (diff == 0) {
-			return;
+		int diff = (targetEdge.direction - currentEdge.direction + 4) % 4;
+		switch (diff) {
+		case 1:
+			turn(90);
+			break;
+		case 2:
+			turn(-180);
+			break;
+		case 3:
+			turn(-90);
+			break;
+		default:
+			break;
 		}
-		if (Math.abs(diff) > 2) {
-			rotate = -diff % 2;
-		} else
-			rotate = diff;
-		if (rotate == 2) {
-			rotate = -2;
-		}
-		lcd.drawString("turn: " + rotate * 90, 0, 90, 0);
-		// Button.ENTER.waitForPressAndRelease();
-		turn(rotate * 90);
 		return;
 	}
 
 	public static void turn(int deg) throws InterruptedException {
+		lcd.drawString("turn: " + deg, 0, 90, 0);
 		float wheelbase = 0.1f;
 		float wheelradius = 0.05f;
-		// lcd.drawString("turn", 0, 75, 0);
+		// Button.ENTER.waitForPressAndRelease();
 		Sound.beepSequenceUp();
+		LineFollowerThread.leftMotor.setSpeed(50);
+		LineFollowerThread.rightMotor.setSpeed(50);
+		
 		int angle = (int) (2 * Math.PI * wheelbase * deg / (2 * Math.PI * wheelradius));
-		// LineFollowerThreadObject.leftMotor.resetTachoCount();
-		// LineFollowerThreadObject.rightMotor.resetTachoCount();
-		// LineFollowerThreadObject.leftMotor.forward();
-		// LineFollowerThreadObject.rightMotor.forward();
-		// LineFollowerThreadObject.leftMotor.setSpeed(100);
-		// LineFollowerThreadObject.rightMotor.setSpeed(100);
+
 		LineFollowerThreadObject.leftMotor.rotate(angle, true);
 		LineFollowerThreadObject.rightMotor.rotate(-angle, false);
+
+		while (LineFollowerThreadObject.leftMotor.isMoving()
+				|| LineFollowerThreadObject.rightMotor.isMoving()) {
+			Thread.sleep(10);
+		}
 		LineFollowerThreadObject.leftMotor.stop();
 		LineFollowerThreadObject.rightMotor.stop();
-				
-		// Button.ENTER.waitForPressAndRelease();
+		// calibration
+		angle = (int) (2 * Math.PI * wheelbase * 5 / (2 * Math.PI * wheelradius));
+		LineFollowerThreadObject.leftMotor.rotate(angle, true);
+		LineFollowerThreadObject.rightMotor.rotate(-angle, false);
+		while ((LineFollowerThreadObject.leftMotor.isMoving() || LineFollowerThreadObject.rightMotor
+				.isMoving()) && LineFollowerThread.lvLine > 0.3) {
+			Thread.sleep(10);
+		}
+		LineFollowerThreadObject.leftMotor.stop(true);
+		LineFollowerThreadObject.rightMotor.stop(false);
+		if (LineFollowerThread.lvLine > 0.3) {
+			angle = (int) (2 * Math.PI * wheelbase * (-10) / (2 * Math.PI * wheelradius));
+			LineFollowerThreadObject.leftMotor.rotate(angle, true);
+			LineFollowerThreadObject.rightMotor.rotate(-angle, false);
+			while ((LineFollowerThreadObject.leftMotor.isMoving() || LineFollowerThreadObject.rightMotor
+					.isMoving()) && LineFollowerThread.lvLine > 0.3) {
+				Thread.sleep(10);
+			}
+			LineFollowerThreadObject.leftMotor.stop(true);
+			LineFollowerThreadObject.rightMotor.stop(false);
+		}
 
 	}
 }

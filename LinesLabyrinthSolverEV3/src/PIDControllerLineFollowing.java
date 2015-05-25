@@ -1,3 +1,5 @@
+import lejos.hardware.Sound;
+
 public class PIDControllerLineFollowing {
 	public float x_pos_error, x_speed_error;
 	public float KP = 0, KD = 0, KI = 0;
@@ -26,9 +28,13 @@ public class PIDControllerLineFollowing {
 		if (integral < -1000) {
 			integral = -1000;
 		}
-		
-
-		return KP * (x_pos_error + KI * integral + KD * x_speed_error);
+		float u=KP * (x_pos_error + KI * integral + KD * x_speed_error);
+		// limit output
+		if(Math.abs(u)>70){
+			u=70*Math.signum(u);
+			Sound.buzz();
+		}
+		return u; 
 
 	}
 	public void resetPID(){

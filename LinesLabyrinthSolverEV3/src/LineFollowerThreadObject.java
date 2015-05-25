@@ -15,16 +15,16 @@ public class LineFollowerThreadObject extends Thread {
 	float MotorSpeedDiff = 0;
 	static RegulatedMotor leftMotor = new EV3LargeRegulatedMotor(MotorPort.B);
 	static RegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.A);
+	static EV3ColorSensor lsLine=new EV3ColorSensor(SensorPort.S2);
 	PIDControllerLineFollowing pidController;
 	GraphicsLCD lcd = LocalEV3.get().getGraphicsLCD();
 
 	public void run() {
 		pidController = new PIDControllerLineFollowing(0.04f, 0.22f);
-		pidController.KP = 240f;
+		pidController.KP = 260f;
 		pidController.KD = 0f;
-		pidController.KI = 0.04f;
+		pidController.KI = 0.06f;
 
-		EV3ColorSensor lsLine = new EV3ColorSensor(SensorPort.S2);
 		lsLine.setFloodlight(true);
 		SampleProvider spLine = lsLine.getRedMode();
 		float[] lvLineArr = new float[spLine.sampleSize()];
