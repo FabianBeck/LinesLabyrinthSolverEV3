@@ -24,35 +24,20 @@ import lejos.hardware.port.*;
 import lejos.hardware.sensor.EV3ColorSensor;
 
 public class LinesLabyrinthSolver {
-	static int north = 0;
-	static int west = 1;
-	static int south = 2;
-	static int east = 3;
+	
 	static int crossArr[] = { 0, 0, 0 };
-	static float stripLength = 0.017f;
+	static float stripLength = 0.017f; // Klebebandbreite
+	static float lightThreshold = 0.18f; //Grenzwert des Lichtsensors
 	static GraphicsLCD lcd = LocalEV3.get().getGraphicsLCD();
 	static LineFollowerThreadObject LineFollowerThread;
-
-	static void drawState(String Name, float EncPos, float lvNavi,
-			Edge currentEdge) {
-		lcd.clear();
-		lcd.drawString("State: " + Name, 0, 15, 0);
-		lcd.drawString("EncPos: " + EncPos, 0, 30, 0);
-		lcd.drawString("lvNavi: " + lvNavi, 0, 45, 0);
-		lcd.drawString("cur.dir:" + currentEdge.direction, 0, 60, 0);
-
-		lcd.drawString("cross: " + crossArr[0] + crossArr[1] + crossArr[2], 0,
-				75, 0);
-	}
-
-	public static int local2global(int direction, Edge currentEdge) {
-		return (currentEdge.direction + direction) % 4;
-	}
-
-	public static int global2local(int direction, Edge currentEdge) {
-		return 0;
-	}
-
+	
+	static float mindstormSpecificOffset = 0.125f; // [m] // Korrekturwert für jeden Mindstorm individuell zu testen
+	static float diameter=0.055f; //Radurchmesser des jeweiligen Mindstorms
+	static float wheelbase = 0.1f; // Radabstand
+	static float wheelradius = 0.05f; //??? 
+	
+	
+	
 	public static void main(String[] args) throws InterruptedException {
 
 		EV3ColorSensor lsNavi = new EV3ColorSensor(SensorPort.S3);
@@ -60,6 +45,11 @@ public class LinesLabyrinthSolver {
 		SampleProvider spNavi = lsNavi.getRedMode();
 
 		// Initializing
+		/**
+		 * Initialisierung wie in Greenfoot. Zusätzlich 
+		 * Werden noch die Lichtsensoren und der LinefollowerThread initialisiert, der für die Verfolgung der Linie verantwortlich ist.
+		 * 
+		 * **/
 		boolean onWayBack = false;
 		Knot currentKnot;
 		Edge currentEdge;
@@ -70,7 +60,7 @@ public class LinesLabyrinthSolver {
 
 		float[] lvNaviArr = new float[spNavi.sampleSize()];
 		float lvNavi = 0;
-		float lightThreshold = 0.18f;
+		
 
 		LineFollowerThread = new LineFollowerThreadObject();
 		LineFollowerThread.start();
@@ -81,6 +71,9 @@ public class LinesLabyrinthSolver {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
+		
+		
+		
 		// Main loop
 		while (!Button.ESCAPE.isDown()) {
 			// Button.RIGHT.waitForPressAndRelease();
@@ -121,15 +114,31 @@ public class LinesLabyrinthSolver {
 							currentEdge);
 				} while (EncPos < stripLength);
 				// Reading bits
+				
+				/**
+				 * Auslesen der Klebebandmarkierungen:
+				 * 
+				 * 1. Reinitialisierung
+				 * 2. Auslesen
+				 * 3. Speichern
+				 * 
+				 */
+				
+				
 				for (int i = 0; i < crossArr.length; i++) {
-					crossArr[i] = 0;
+					crossArr[i] = 0; // Reinitialisierung
 				}
 				for (int j = 0; j < 3; j++) {
+					/**
+					 * Hier findet das eigentliche auslesen des Wertes statt, dafür wird die zurückgelegte Streke gespeichert, um zu wissen welcher Streifen gerade gelesen wird.
+					 * um den Lichtsensorwerten den passenden Klebebandstreifen zuzuordnen.
+					 * **/
+					
 					int k = 0;
 					float lvNaviSum = 0;
 					while (EncPos / stripLength < j + 2) {
 						EncPos = (float) (LineFollowerThread.rightMotor
-								.getTachoCount() / 360f * Math.PI * 0.055);
+								.getTachoCount() / 360f * Math.PI * diameter);
 						spNavi.fetchSample(lvNaviArr, 0);
 						lvNavi = lvNaviArr[0];
 						lvNaviSum += lvNavi;
@@ -138,6 +147,8 @@ public class LinesLabyrinthSolver {
 							drawState("Read bit: " + (j + 1), EncPos, lvNavi,
 									currentEdge);
 					}
+					
+					// Speichern der Sensorwerte  in unsere Kreuzung
 					if (lvNaviSum / k > lightThreshold) {
 						int direction = 0;
 						switch (j) {
@@ -162,10 +173,16 @@ public class LinesLabyrinthSolver {
 				}
 			}
 			// drive to middle of crossing
-			float mindstormSpecificOffset = 0.125f; // [m]
+			
 			do {
+				
+				/**
+				 * Nachdem, man die Kreuzung ausgelesen hat muss noch weiter gefahren werden bis man auf der Kreuzung steht, dies geschieht hier.
+				 * 
+				 * 
+				 * **/
 				EncPos = (float) (LineFollowerThread.rightMotor.getTachoCount()
-						/ 360f * Math.PI * 0.055);
+						/ 360f * Math.PI * diameter);
 				if (l % 30 == 0)
 					drawState("drive to begin of crossing", EncPos, lvNavi,
 							currentEdge);
@@ -174,6 +191,11 @@ public class LinesLabyrinthSolver {
 			} while (EncPos < 5 * stripLength + mindstormSpecificOffset);
 
 			LineFollowerThread.stopFollowing();
+			
+			
+			/**
+			 * Hier ist wieder der eigentliche Algorithmus aus Greenfoot zu finden
+			 * **/
 			// Button.ENTER.waitForPressAndRelease();
 			Edge nextEdge = currentKnot.getNextOption();
 			if (nextEdge != null) {
@@ -193,6 +215,7 @@ public class LinesLabyrinthSolver {
 
 		}
 
+		
 		lsNavi.close();
 		LineFollowerThread.stopFollowing();
 		LineFollowerThread.quitThread();
@@ -206,9 +229,9 @@ public class LinesLabyrinthSolver {
 	public static void rotate(Edge currentEdge, Edge targetEdge)
 			throws InterruptedException {
 		/**
-		 * Diese Funktion berechnet euch bei Ãœbergabe der aktuellen Kante und
-		 * der Zielkante den Drehwinkel und fÃ¼hrt die Drehung aus
-		 **/
+		 * Rotatefunktion, entspricht der Rotatefunktion aus Greenfoot   
+		 * 
+		 * **/
 
 		int diff = (targetEdge.direction - currentEdge.direction + 4) % 4;
 		switch (diff) {
@@ -227,15 +250,46 @@ public class LinesLabyrinthSolver {
 		return;
 	}
 
+	
+	
+	static void drawState(String Name, float EncPos, float lvNavi,
+			Edge currentEdge) {
+		
+		/**
+			Zeigt den aktuellen internen Zustand des Mindstorms an :
+			-state: Was mache ich gerade
+			EncPos: Zurückgelegte Strecke
+			lvNavi: Wert des Lichtsensors
+			cur.dir: aktuelle richtung 
+		 */
+		lcd.clear();
+		lcd.drawString("State: " + Name, 0, 15, 0);
+		lcd.drawString("EncPos: " + EncPos, 0, 30, 0);
+		lcd.drawString("lvNavi: " + lvNavi, 0, 45, 0);
+		lcd.drawString("cur.dir:" + currentEdge.direction, 0, 60, 0);
+
+		lcd.drawString("cross: " + crossArr[0] + crossArr[1] + crossArr[2], 0,
+				75, 0);
+	}
+
+	public static int local2global(int direction, Edge currentEdge) {
+		// Einfache Umrechnungsmethode
+		
+		return (currentEdge.direction + direction) % 4;
+	}
+	
 	public static void turn(int deg) throws InterruptedException {
+		
+		/** Hier wird sich um die die mitgegebene Gradzahl gedreht
+		 *Dafür werden zuerst die Motoren initialisiert und dann um die Mindstormspezifischen Werte (Abhängig Radabstand und Radgröße) gedreht.
+		 *
+		 */
 		
 		Thread.sleep(1000);
 		RegulatedMotor leftMotor = new EV3LargeRegulatedMotor(MotorPort.B);
 		RegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.A);
 		lcd.drawString("turn: " + deg, 0, 90, 0);
 		deg+=10;
-		float wheelbase = 0.1f;
-		float wheelradius = 0.05f;
 		// Button.ENTER.waitForPressAndRelease();
 		// Sound.beepSequenceUp();
 		leftMotor.setSpeed(100);

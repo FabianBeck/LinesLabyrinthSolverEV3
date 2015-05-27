@@ -8,6 +8,9 @@ import lejos.robotics.RegulatedMotor;
 import lejos.robotics.SampleProvider;
 
 public class LineFollowerThreadObject extends Thread {
+    
+	static float diameter= 0.055f; //Radurchmesser des jeweiligen Mindstorms
+	
 	boolean running = true;
 	boolean quit = false;
 	public float lvLine = 0;
@@ -20,6 +23,7 @@ public class LineFollowerThreadObject extends Thread {
 	GraphicsLCD lcd = LocalEV3.get().getGraphicsLCD();
 
 	public void run() {
+		
 		pidController = new PIDControllerLineFollowing(0.04f, 0.22f);
 		pidController.KP = 235f;
 		pidController.KD = 0f;
@@ -100,7 +104,7 @@ public class LineFollowerThreadObject extends Thread {
 	}
 
 	public float getAngularRate() {
-		return 0.055f * MotorSpeedDiff / 0.125f;
+		return diameter * MotorSpeedDiff / 0.125f;
 	}
 
 	public void reset() {
