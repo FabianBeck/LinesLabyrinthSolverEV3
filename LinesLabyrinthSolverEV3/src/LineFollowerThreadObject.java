@@ -8,9 +8,9 @@ import lejos.robotics.RegulatedMotor;
 import lejos.robotics.SampleProvider;
 
 public class LineFollowerThreadObject extends Thread {
-    
-	static float diameter= 0.055f; //Radurchmesser des jeweiligen Mindstorms
-	
+
+	static float diameter = 0.055f; // Radurchmesser des jeweiligen Mindstorms
+
 	boolean running = true;
 	boolean quit = false;
 	public float lvLine = 0;
@@ -18,16 +18,16 @@ public class LineFollowerThreadObject extends Thread {
 	float MotorSpeedDiff = 0;
 	static RegulatedMotor leftMotor = new EV3LargeRegulatedMotor(MotorPort.B);
 	static RegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.A);
-	static EV3ColorSensor lsLine=new EV3ColorSensor(SensorPort.S2);
+	static EV3ColorSensor lsLine = new EV3ColorSensor(SensorPort.S2);
 	PIDControllerLineFollowing pidController;
 	GraphicsLCD lcd = LocalEV3.get().getGraphicsLCD();
 
 	public void run() {
-		
+
 		pidController = new PIDControllerLineFollowing(0.04f, 0.22f);
 		pidController.KP = 235f;
 		pidController.KD = 0f;
-		pidController.KI = 0.0f;
+		pidController.KI = 0.05f;
 
 		lsLine.setFloodlight(true);
 		SampleProvider spLine = lsLine.getRedMode();
@@ -57,14 +57,14 @@ public class LineFollowerThreadObject extends Thread {
 				}
 				leftMotor.setSpeed((int) speedl);
 				rightMotor.setSpeed((int) speedr);
-				motorsStopped=false;
+				motorsStopped = false;
 			}
 			if (!motorsStopped) {
 				leftMotor.stop(true);
 				rightMotor.stop(true);
 				leftMotor.close();
-				rightMotor.close();				
-				motorsStopped=true;
+				rightMotor.close();
+				motorsStopped = true;
 			}
 			try {
 				Thread.sleep(10);
@@ -72,21 +72,14 @@ public class LineFollowerThreadObject extends Thread {
 				e.printStackTrace();
 			}
 		}
-		//leftMotor.close();
-		//rightMotor.close();
-
 	}
 
-	public void startFollowing() {
+	public void startFollowing() throws InterruptedException {
 		pidController.resetPID();
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		leftMotor = new EV3LargeRegulatedMotor(MotorPort.B);   
-		rightMotor = new EV3LargeRegulatedMotor(MotorPort.A);  
+		Thread.sleep(1000);
+		leftMotor = new EV3LargeRegulatedMotor(MotorPort.B);
+		rightMotor = new EV3LargeRegulatedMotor(MotorPort.A);
+		setSpeed(0);
 		running = true;
 	}
 
@@ -103,8 +96,12 @@ public class LineFollowerThreadObject extends Thread {
 		return speedForward;
 	}
 
-	public float getAngularRate() {
-		return diameter * MotorSpeedDiff / 0.125f;
+	public void setSpeed(float speedToSet) {
+		speedForward = speedToSet;
+	}
+
+	public void increaseSpeed(float diff) {
+		speedForward += diff;
 	}
 
 	public void reset() {
